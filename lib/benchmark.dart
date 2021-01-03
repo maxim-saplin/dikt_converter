@@ -45,14 +45,14 @@ void test(String jsonString) {
     comp = gzipDart(m, 9);
     decomp.add(gzipDartDecomp(comp, 9));
 
-    comp = zlibDart(m, 0);
-    decomp.add(zlibDartDecomp(comp, 0));
-    comp = zlibDart(m, 1);
-    decomp.add(zlibDartDecomp(comp, 1));
-    comp = zlibDart(m, 6);
-    decomp.add(zlibDartDecomp(comp, 6));
-    comp = zlibDart(m, 9);
-    decomp.add(zlibDartDecomp(comp, 9));
+    comp = zlibDartIo(m, 0);
+    decomp.add(zlibDartIoDecomp(comp, 0));
+    comp = zlibDartIo(m, 1);
+    decomp.add(zlibDartIoDecomp(comp, 1));
+    comp = zlibDartIo(m, 6);
+    decomp.add(zlibDartIoDecomp(comp, 6));
+    comp = zlibDartIo(m, 9);
+    decomp.add(zlibDartIoDecomp(comp, 9));
 
 //BZip2 is super slow and gives poorer compression ratio
 
@@ -118,7 +118,7 @@ String zlibDecomp(Map<String, Uint8List> m, int level) {
 }
 
 // Only turning on raw makes a difference, thoug encoded with raw true can't be decoded with raw false
-Map<String, Uint8List> zlibDart(Map<String, String> m, int level) {
+Map<String, Uint8List> zlibDartIo(Map<String, String> m, int level) {
   var comp = (Map<String, String> m) {
     var cu = _CompUncomp();
     var enc = ZLibCodec(
@@ -141,7 +141,7 @@ Map<String, Uint8List> zlibDart(Map<String, String> m, int level) {
   return _common(m, 'ZLib dart:io (level: ${level})', comp);
 }
 
-String zlibDartDecomp(Map<String, Uint8List> m, int level) {
+String zlibDartIoDecomp(Map<String, Uint8List> m, int level) {
   var sw = Stopwatch();
   sw.start();
   var dec = ZLibCodec(raw: true).decoder;

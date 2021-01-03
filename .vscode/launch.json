@@ -17,6 +17,13 @@
         "type": "dart",
         "program": "bin/main.dart",
         "args": ["test_dictionaries"]
-    }
+    },
+    {
+      "name": "Convert: json",
+      "request": "launch",
+      "type": "dart",
+      "program": "bin/main.dart",
+      "args": ["/private/var/user/Dropbox/Projects/dikt_misc/dic/Lingvo, JSON", "-json"]
+  }
   ]
 }

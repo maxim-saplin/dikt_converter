@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
 import '../lib/benchmark.dart';
 
 const filePath =
@@ -40,15 +41,22 @@ void main(List<String> arguments) async {
     return;
   }
 
-  var py = File(FileSystemEntity.parentOf(Directory('').absolute.path) +
-      '/pyglossary/main.py');
+  File py;
+  bool json = true;
 
-  stdout.writeln(FileSystemEntity.parentOf(Directory('').absolute.path));
+  if (!arguments.contains('-json')) {
+    py = File(FileSystemEntity.parentOf(Directory('').absolute.path) +
+        '/pyglossary/main.py');
 
-  if (!py.existsSync()) {
-    stdout.writeln(
-        'ERROR, pyglossary entry point not found "${py.absolute.path}"');
-    return;
+    stdout.writeln(FileSystemEntity.parentOf(Directory('').absolute.path));
+
+    if (!py.existsSync()) {
+      stdout.writeln(
+          'ERROR, pyglossary entry point not found "${py.absolute.path}"');
+      return;
+    }
+
+    json = false;
   }
 
   var d = Directory(arguments[0]);
@@ -70,6 +78,8 @@ void main(List<String> arguments) async {
   var files = d.listSync(recursive: true).where((e) =>
       e is File && !e.path.contains('.DS_Store') && !e.path.contains('~'));
 
+  if (json) files = files.where((e) => e.path.toLowerCase().endsWith('.json'));
+
   if (files.isEmpty) {
     stdout.writeln('ERROR, no files fouind in directory "${d.absolute.path}"');
     return;
@@ -83,28 +93,42 @@ void main(List<String> arguments) async {
 
   for (var f in files) {
     stdout.write(f.path);
-    stdout.write(' /JSON...');
 
-    var outputJson =
-        output.absolute.path + '/' + f.path.split('/').last + '.json';
+    var fname = f.path.split('/').last;
 
-    var res = Process.runSync(
-        'python3', [py.absolute.path, f.absolute.path, outputJson]);
-    if (res.exitCode != 0) {
-      stdout.writeln(' - Skipping file, pyglossary error');
-      stdout.writeln(res.stderr);
-      skipped++;
+    if (json) fname = fname.substring(0, fname.length - 5);
+
+    if (!json) {
+      stdout.write(' /JSON...');
+
+      var outputJson =
+          output.absolute.path + '/' + f.path.split('/').last + '.json';
+
+      var res = Process.runSync(
+          'python3', [py.absolute.path, f.absolute.path, outputJson]);
+      if (res.exitCode != 0) {
+        stdout.writeln(' - Skipping file, pyglossary error');
+        stdout.writeln(res.stderr);
+        skipped++;
+      } else {
+        done++;
+        stdout.write('done. /DIKT...');
+
+        var outputDikt = output.absolute.path + '/' + fname + '.dikt';
+        var outputInfo = output.absolute.path + '/' + fname + '.dikt.txt';
+
+        await bundleJson(f.absolute.path, outputDikt, outputInfo);
+        stdout.writeln('done.');
+      }
     } else {
-      done++;
-      stdout.write('done. /DIKT...');
+      stdout.write(' /DIKT...');
 
-      var outputDikt =
-          output.absolute.path + '/' + f.path.split('/').last + '.dikt';
-      var outputInfo =
-          output.absolute.path + '/' + f.path.split('/').last + '.dikt.txt';
+      var outputDikt = output.absolute.path + '/' + fname + '.dikt';
+      var outputInfo = output.absolute.path + '/' + fname + '.dikt.txt';
 
-      await bundleJson(outputJson, outputDikt, outputInfo);
+      await bundleJson(f.path, outputDikt, outputInfo);
       stdout.writeln('done.');
+      done++;
     }
   }
 
@@ -120,6 +144,8 @@ void bundleJson(String fileName, String outputFileName,
   Map mm = json.decode(jsonString);
   var m = mm.cast<String, String>();
   var comp = zlib(m, 6, verbose);
+  // Raw zlib gives 5% advantage on 82 JSON dixtionaries, though not compatible with old apps, not worth dealing with versioning
+  //var comp = zlibDartIo(m, 9);
 
   if (verbose) print('Writing ${m.length} entries to ${output.path}');
   await output.create();
