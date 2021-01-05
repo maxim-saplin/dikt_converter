@@ -4,7 +4,20 @@ description: Dictionary converter for dikt
 # homepage: https://www.example.com
 
 environment:
-  sdk: ">=2.12.0-0 <3.0.0"
+  sdk: '>=2.12.0-0 <3.0.0'
 
 dependencies:
- archive: ^2.0.13
+  archive:
+    git:
+      url: https://github.com/brendan-duncan/archive.git
+
+dev_dependencies:
+  pedantic: ^1.10.0-nullsafety.3
+
+# to make archive work in null safe fashion
+dependency_overrides:
+  crypto:
+    git:
+      url: git://github.com/dart-lang/crypto.git
+      ref: a5ec902dda5a635a35c6b363ec64458cf84c5872
+  convert: ^3.0.0-nullsafety

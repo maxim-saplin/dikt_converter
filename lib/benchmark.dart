@@ -14,7 +14,7 @@ void testOnFile() async {
 void test(String jsonString) {
   Map mm = json.decode(jsonString);
   var m = mm.cast<String, String>();
-  List<String> decomp = [];
+  var decomp = <String>[];
   for (var i = 0; i < 1; i++) {
     Map<String, Uint8List> comp;
 
@@ -75,7 +75,9 @@ void test(String jsonString) {
     decomp.add(' - ');
   }
   print(' --- ');
-  for (var i in decomp) print(i);
+  for (var i in decomp) {
+    print(i);
+  }
 }
 
 class _CompUncomp {
@@ -199,7 +201,7 @@ Map<String, Uint8List> gzip(Map<String, String> m, int level) {
     for (var e in m.entries) {
       var bytes = utf8.encode(e.value);
       cu.uncompressed += bytes.length;
-      var gzipBytes = enc.encode(bytes, level: level);
+      var gzipBytes = enc.encode(bytes, level: level) ?? [];
       var b = Uint8List.fromList(gzipBytes);
       cu.compressed += b.length;
       cu.m[e.key] = b;
@@ -266,7 +268,7 @@ Map<String, Uint8List> _common(Map<String, String> m, String name,
 
   sw.stop();
 
-  if (verbose)
+  if (verbose) {
     print(name +
         ': ' +
         sw.elapsedMilliseconds.toStringAsFixed(2) +
@@ -275,6 +277,7 @@ Map<String, Uint8List> _common(Map<String, String> m, String name,
         ' (${(cu.uncompressed / 1024 / 1024).toStringAsFixed(2)}Mb/' +
         (cu.compressed / 1024 / 1024).toStringAsFixed(2) +
         'Mb)');
+  }
 
   return cu.m;
 }

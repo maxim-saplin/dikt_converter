@@ -1,10 +1,8 @@
-// @dart=2.9
-
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import '../lib/benchmark.dart';
+import 'package:dikt_converter/benchmark.dart';
 
 const filePath =
     '/private/var/user/Dropbox/Projects/dikt_misc/dic/dictionaries2/1/RuEnUniversal.json'; //'./En-En-WordNet3-00.json';
@@ -18,20 +16,21 @@ void main(List<String> arguments) async {
       arguments.contains('-h') ||
       arguments.contains('-help') ||
       arguments.isEmpty) {
-    stdout.writeln('To convert a files to dikt format (text JSON and compressed binary DIKT ' +
-        'pass folder path with source dictionary files (e.g. with *.dsl.dz) ' +
-        'and wait for the converted files to appear in "/_output" folder ' +
-        'which will be created inside the source folder.\n' +
-        'Source directory is searched recursively. Files that can\'t be processed by pyglossary are ignored.\n' +
-        'For each source file thre output files are created:\n' +
-        ' - *.JSON - text file containing key/value pairs with key being word and value being article\n' +
-        ' - *.DIKT - compressed binary version of JSON which is a compact version of JSON dictionary\n' +
-        ' - *.DIKT.TXT - statisitcs related to DIKT file (number of words, size in bytes)\n' +
-        '\npyglossary is used to convert source dictionaries to JSON. ' +
-        'pyglossary must be located in the same folder as converter folder, e.g:\n' +
-        ' - /home/pyglossary\n' +
-        ' - /home/dikt_converter/main.dart\n' +
-        'python3 must be installed and available from command line.' +
+    stdout.writeln(
+        'To convert a files to dikt format (text JSON and compressed binary DIKT '
+        'pass folder path with source dictionary files (e.g. with *.dsl.dz) '
+        'and wait for the converted files to appear in "/_output" folder '
+        'which will be created inside the source folder.\n'
+        'Source directory is searched recursively. Files that can\'t be processed by pyglossary are ignored.\n'
+        'For each source file thre output files are created:\n'
+        ' - *.JSON - text file containing key/value pairs with key being word and value being article\n'
+        ' - *.DIKT - compressed binary version of JSON which is a compact version of JSON dictionary\n'
+        ' - *.DIKT.TXT - statisitcs related to DIKT file (number of words, size in bytes)\n'
+        '\npyglossary is used to convert source dictionaries to JSON. '
+        'pyglossary must be located in the same folder as converter folder, e.g:\n'
+        ' - /home/pyglossary\n'
+        ' - /home/dikt_converter/main.dart\n'
+        'python3 must be installed and available from command line.'
         '\n\nPass "-test" argument to run compression algorythms efficiency benchmark');
     return;
   }
@@ -41,13 +40,11 @@ void main(List<String> arguments) async {
     return;
   }
 
-  File py;
-  bool json = true;
+  var py = File(FileSystemEntity.parentOf(Directory('').absolute.path) +
+      '/pyglossary/main.py');
+  var json = true;
 
   if (!arguments.contains('-json')) {
-    py = File(FileSystemEntity.parentOf(Directory('').absolute.path) +
-        '/pyglossary/main.py');
-
     stdout.writeln(FileSystemEntity.parentOf(Directory('').absolute.path));
 
     if (!py.existsSync()) {
@@ -88,8 +85,8 @@ void main(List<String> arguments) async {
   stdout.writeln(
       'Processing ${files.length} files in "${d.absolute.path}"... \n');
 
-  int done = 0;
-  int skipped = 0;
+  var done = 0;
+  var skipped = 0;
 
   for (var f in files) {
     stdout.write(f.path);
@@ -136,8 +133,8 @@ void main(List<String> arguments) async {
       '\nConversion complete. Files converted: ${done}, skipped: ${skipped}');
 }
 
-void bundleJson(String fileName, String outputFileName,
-    [String infoFile, bool verify = false, bool verbose = false]) async {
+Future<void> bundleJson(String fileName, String outputFileName,
+    [String? infoFile, bool verify = false, bool verbose = false]) async {
   var input = File(fileName);
   var output = File(outputFileName); //= File(fileName + '.' + outputExtension);
   var jsonString = await input.readAsString();
@@ -167,7 +164,7 @@ void bundleJson(String fileName, String outputFileName,
     raf.writeFromSync(bd.buffer.asUint8List());
     raf.writeFromSync(e.value);
   }
-  raf.close();
+  await raf.close();
   if (verify) {
     if (verbose) print('Veryfing ${output.path} ...');
     var m = await readFileViaByteData(output.path);
@@ -185,7 +182,7 @@ void bundleJson(String fileName, String outputFileName,
 
   if (infoFile != null) {
     var info = File(infoFile);
-    info.writeAsString(
+    await info.writeAsString(
         output.path.split('/').last +
             '\n${m.length} words\n${output.statSync().size} bytes\n',
         mode: FileMode.write);
@@ -202,7 +199,7 @@ Future<Map<String, Uint8List>> readFileViaByteData(String fileName) async {
 }
 
 Map<String, Uint8List> readByteData(ByteData file) {
-  var m = Map<String, Uint8List>();
+  var m = <String, Uint8List>{};
 
   var position = 0;
 
@@ -239,7 +236,7 @@ int _readInt32(RandomAccessFile raf) {
   return val;
 }
 
-Uint8List _readIntList(RandomAccessFile raf, int count) {
+Uint8List? _readIntList(RandomAccessFile raf, int count) {
   var bytes = Uint8List(count);
   if (raf.readIntoSync(bytes) <= 0) return null;
 
@@ -254,7 +251,7 @@ Future<Map<String, Uint8List>> readFile(String fileName) async {
 
   print('Reading ${count} entries from file ${fileName}');
 
-  var m = Map<String, Uint8List>();
+  var m = <String, Uint8List>{};
 
   while (true) {
     var length = _readInt32(raf);
