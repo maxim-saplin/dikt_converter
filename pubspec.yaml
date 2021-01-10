@@ -7,6 +7,8 @@ environment:
   sdk: '>=2.12.0-0 <3.0.0'
 
 dependencies:
+  ikvpack:
+    path: '../ikvpack'
   archive:
     git:
       url: https://github.com/brendan-duncan/archive.git

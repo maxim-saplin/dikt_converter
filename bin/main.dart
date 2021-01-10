@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:ikvpack/ikvpack.dart';
+
 import 'package:dikt_converter/benchmark.dart';
 
 const filePath =
@@ -114,8 +116,13 @@ void main(List<String> arguments) async {
         var outputDikt = output.absolute.path + '/' + fname + '.dikt';
         var outputInfo = output.absolute.path + '/' + fname + '.dikt.txt';
 
+        // try {
         await bundleJson(f.absolute.path, outputDikt, outputInfo);
+
         stdout.writeln('done.');
+        // } catch (_) {
+        //   stdout.writeln(' - Skipping file, JSON decode error');
+        // }
       }
     } else {
       stdout.write(' /DIKT...');
@@ -136,7 +143,6 @@ void main(List<String> arguments) async {
 Future<void> bundleJson(String fileName, String outputFileName,
     [String? infoFile, bool verify = false, bool verbose = false]) async {
   var input = File(fileName);
-  var output = File(outputFileName); //= File(fileName + '.' + outputExtension);
   var jsonString = await input.readAsString();
   Map mm = json.decode(jsonString);
   var m = mm.cast<String, String>();
@@ -145,44 +151,30 @@ Future<void> bundleJson(String fileName, String outputFileName,
   // also slower than Archive package
   //var comp = zlibDartIo(m, 9);
 
-  if (verbose) print('Writing ${m.length} entries to ${output.path}');
-  await output.create();
-  var raf = await output.open(mode: FileMode.write);
+  if (verbose) print('Writing ${m.length} entries to ${outputFileName}');
 
-  var bd = ByteData(4);
-  bd.setInt32(0, m.length);
-  raf.writeFromSync(bd.buffer.asUint8List());
+  var ikv = IkvPack.fromMap(m);
+  ikv.saveTo(outputFileName);
 
-  for (var e in comp.entries) {
-    var bytes = utf8.encode(e.key);
-    bd = ByteData(4);
-    bd.setInt32(0, bytes.length);
-    raf.writeFromSync(bd.buffer.asUint8List());
-    raf.writeFromSync(bytes);
-
-    bd = ByteData(4);
-    bd.setInt32(0, e.value.length);
-    raf.writeFromSync(bd.buffer.asUint8List());
-    raf.writeFromSync(e.value);
-  }
-  await raf.close();
   if (verify) {
-    if (verbose) print('Veryfing ${output.path} ...');
-    var m = await readFileViaByteData(output.path);
-    if (comp.length != m.length) {
+    if (verbose) print('Veryfing ${outputFileName} ...');
+    //var m = await readFileViaByteData(outputFileName);
+    ikv = IkvPack(outputFileName);
+    if (comp.length != ikv.length) {
       print('ERROR. Wrong length. Saved ${comp.length}, read ${m.length}');
     } else {
-      for (var k in m.keys) {
-        if (m[k]?.length != comp[k]?.length) {
-          print('Wrong values for key "${k}"');
-          //break;
-        }
-      }
+      // for (var k in m.keys) {
+      //   if (m[k]?.length != comp[k]?.length) {
+      //     print('Wrong values for key "${k}"');
+      //     //break;
+      //   }
+      // }
     }
   }
 
   if (infoFile != null) {
     var info = File(infoFile);
+    var output = File(outputFileName);
     await info.writeAsString(
         output.path.split('/').last +
             '\n${m.length} words\n${output.statSync().size} bytes\n',
