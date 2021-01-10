@@ -142,6 +142,7 @@ Future<void> bundleJson(String fileName, String outputFileName,
   var m = mm.cast<String, String>();
   var comp = zlib(m, 6, verbose);
   // Raw zlib gives 5% advantage on 82 JSON dixtionaries, though not compatible with old apps, not worth dealing with versioning
+  // also slower than Archive package
   //var comp = zlibDartIo(m, 9);
 
   if (verbose) print('Writing ${m.length} entries to ${output.path}');
