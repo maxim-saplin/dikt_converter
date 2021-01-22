@@ -4,14 +4,15 @@ import 'dart:typed_data';
 
 // ignore: import_of_legacy_library_into_null_safe
 import 'package:archive/archive.dart';
+import 'package:dikt_converter/lzstring.dart';
 
 void testOnFile() async {
   var f = File('./En-En-WordNet3-00.json');
   var s = await f.readAsString();
-  test(s);
+  await test(s);
 }
 
-void test(String jsonString) {
+Future<void> test(String jsonString) async {
   Map mm = json.decode(jsonString);
   var m = mm.cast<String, String>();
   var decomp = <String>[];
@@ -53,6 +54,8 @@ void test(String jsonString) {
     decomp.add(zlibDartIoDecomp(comp, 6));
     comp = zlibDartIo(m, 9);
     decomp.add(zlibDartIoDecomp(comp, 9));
+
+    comp = await lzComp(m, 0);
 
 //BZip2 is super slow and gives poorer compression ratio
 
@@ -226,6 +229,23 @@ String gzipDecomp(Map<String, Uint8List> m, int level) {
       ' (ms)';
 }
 
+Future<Map<String, Uint8List>> lzComp(Map<String, String> m, int level) {
+  var func = (Map<String, String> m) async {
+    var cu = _CompUncomp();
+
+    for (var e in m.entries) {
+      var bytes = await LZString.compressToUint8Array(e.value);
+      var bb = utf8.encode(e.value);
+      cu.uncompressed += bb.length;
+      cu.compressed += bytes.length;
+      cu.m[e.key] = bytes;
+    }
+    return cu;
+  };
+
+  return _commonAsync(m, 'LZ (level: ${level})', func);
+}
+
 Map<String, Uint8List> bzip2(Map<String, String> m) {
   var func = (Map<String, String> m) {
     var cu = _CompUncomp();
@@ -265,6 +285,30 @@ Map<String, Uint8List> _common(Map<String, String> m, String name,
   sw.start();
 
   var cu = func(m);
+
+  sw.stop();
+
+  if (verbose) {
+    print(name +
+        ': ' +
+        sw.elapsedMilliseconds.toStringAsFixed(2) +
+        '(ms)' +
+        ' - Compression ratio: ${(cu.uncompressed / cu.compressed).toStringAsFixed(2)}' +
+        ' (${(cu.uncompressed / 1024 / 1024).toStringAsFixed(2)}Mb/' +
+        (cu.compressed / 1024 / 1024).toStringAsFixed(2) +
+        'Mb)');
+  }
+
+  return cu.m;
+}
+
+Future<Map<String, Uint8List>> _commonAsync(Map<String, String> m, String name,
+    Future<_CompUncomp> Function(Map<String, String> m) func,
+    [bool verbose = true]) async {
+  var sw = Stopwatch();
+  sw.start();
+
+  var cu = await func(m);
 
   sw.stop();
 

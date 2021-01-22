@@ -24,6 +24,13 @@
       "type": "dart",
       "program": "bin/main.dart",
       "args": ["/private/var/user/Dropbox/Projects/dikt_misc/dic/Lingvo, JSON", "-json"]
+    },
+    {
+      "name": "Convert: split",
+      "request": "launch",
+      "type": "dart",
+      "program": "bin/main.dart",
+      "args": ["/private/var/user/Desktop/2/", "-fromJson", "-splt", "5"]
   }
   ]
 }

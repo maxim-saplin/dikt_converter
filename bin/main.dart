@@ -10,9 +10,15 @@ const filePath =
     '/private/var/user/Dropbox/Projects/dikt_misc/dic/dictionaries2/1/RuEnUniversal.json'; //'./En-En-WordNet3-00.json';
 const outputExtension = 'dikt';
 
-void main(List<String> arguments) async {
-  //bundleJson(filePath);
+// params
+const fromJsonParam =
+    '-fromJson'; // do not engage pyglossary, convert JSON to DIKT
+const toJsonOnlyParam =
+    '-toJsonOnly'; // only produce JSON via pyglossary, do not produce DIKT
 
+const splitParam = '-split'; // break output files into N pieces
+
+void main(List<String> arguments) async {
   stdout.writeln('Welcome to Dikt Converter\n');
   if (arguments.contains('-?') ||
       arguments.contains('-h') ||
@@ -44,9 +50,13 @@ void main(List<String> arguments) async {
 
   var py = File(FileSystemEntity.parentOf(Directory('').absolute.path) +
       '/pyglossary/main.py');
-  var json = true;
 
-  if (!arguments.contains('-json')) {
+  var fromJson = arguments.contains(fromJsonParam);
+  var toJsonOnly = arguments.contains(toJsonOnlyParam);
+  var splitIndex = arguments.indexOf(splitParam);
+  var split = splitIndex > -1 ? int.parse(arguments[splitIndex + 1]) : 0;
+
+  if (!fromJson) {
     stdout.writeln(FileSystemEntity.parentOf(Directory('').absolute.path));
 
     if (!py.existsSync()) {
@@ -54,8 +64,6 @@ void main(List<String> arguments) async {
           'ERROR, pyglossary entry point not found "${py.absolute.path}"');
       return;
     }
-
-    json = false;
   }
 
   var d = Directory(arguments[0]);
@@ -77,7 +85,9 @@ void main(List<String> arguments) async {
   var files = d.listSync(recursive: true).where((e) =>
       e is File && !e.path.contains('.DS_Store') && !e.path.contains('~'));
 
-  if (json) files = files.where((e) => e.path.toLowerCase().endsWith('.json'));
+  if (fromJson) {
+    files = files.where((e) => e.path.toLowerCase().endsWith('.json'));
+  }
 
   if (files.isEmpty) {
     stdout.writeln('ERROR, no files fouind in directory "${d.absolute.path}"');
@@ -91,14 +101,14 @@ void main(List<String> arguments) async {
   var skipped = 0;
 
   for (var f in files) {
-    stdout.write(f.path);
+    stdout.writeln(f.path);
 
     var fname = f.path.split('/').last;
 
-    if (json) fname = fname.substring(0, fname.length - 5);
+    if (fromJson) fname = fname.substring(0, fname.length - 5);
 
-    if (!json) {
-      stdout.write(' /JSON...');
+    if (!fromJson) {
+      stdout.write('|JSON...');
 
       var outputJson =
           output.absolute.path + '/' + f.path.split('/').last + '.json';
@@ -110,28 +120,32 @@ void main(List<String> arguments) async {
         stdout.writeln(res.stderr);
         skipped++;
       } else {
-        done++;
-        stdout.write('done. /DIKT...');
+        if (toJsonOnly) {
+          done++;
+          stdout.writeln('OK');
+          stdout.writeln('\t - file conversion complete.');
+        } else {
+          stdout.write('OK |DIKT...');
 
-        var outputDikt = output.absolute.path + '/' + fname + '.dikt';
-        var outputInfo = output.absolute.path + '/' + fname + '.dikt.txt';
+          var outputDikt = output.absolute.path + '/' + fname;
 
-        // try {
-        await bundleJson(f.absolute.path, outputDikt, outputInfo);
+          // try {
+          await bundleJson(outputJson, outputDikt, false, split);
+          done++;
 
-        stdout.writeln('done.');
-        // } catch (_) {
-        //   stdout.writeln(' - Skipping file, JSON decode error');
-        // }
+          stdout.writeln('\t - file conversion complete.');
+          // } catch (_) {
+          //   stdout.writeln(' - Skipping file, JSON decode error');
+          // }
+        }
       }
     } else {
-      stdout.write(' /DIKT...');
+      stdout.write('|DIKT...');
 
-      var outputDikt = output.absolute.path + '/' + fname + '.dikt';
-      var outputInfo = output.absolute.path + '/' + fname + '.dikt.txt';
+      var outputDikt = output.absolute.path + '/' + fname;
 
-      await bundleJson(f.path, outputDikt, outputInfo);
-      stdout.writeln('done.');
+      await bundleJson(f.path, outputDikt, false, split);
+      stdout.writeln('\t - file conversion complete.');
       done++;
     }
   }
@@ -141,44 +155,46 @@ void main(List<String> arguments) async {
 }
 
 Future<void> bundleJson(String fileName, String outputFileName,
-    [String? infoFile, bool verify = false, bool verbose = false]) async {
+    [bool verbose = false, int split = 0]) async {
+  void writeInfo(String fName, int length) async {
+    var src = File(fName);
+    var info = File(fName + '.txt');
+
+    await info.writeAsString(
+        src.path.split('/').last +
+            '\n${length} words\n${src.statSync().size} bytes\n',
+        mode: FileMode.write);
+  }
+
   var input = File(fileName);
   var jsonString = await input.readAsString();
   Map mm = json.decode(jsonString);
   var m = mm.cast<String, String>();
-  var comp = zlib(m, 6, verbose);
-  // Raw zlib gives 5% advantage on 82 JSON dixtionaries, though not compatible with old apps, not worth dealing with versioning
-  // also slower than Archive package
-  //var comp = zlibDartIo(m, 9);
+
+  stdout.write(' JSON READ.. ');
 
   if (verbose) print('Writing ${m.length} entries to ${outputFileName}');
 
   var ikv = IkvPack.fromMap(m);
-  ikv.saveTo(outputFileName);
 
-  if (verify) {
-    if (verbose) print('Veryfing ${outputFileName} ...');
-    //var m = await readFileViaByteData(outputFileName);
-    ikv = IkvPack(outputFileName);
-    if (comp.length != ikv.length) {
-      print('ERROR. Wrong length. Saved ${comp.length}, read ${m.length}');
-    } else {
-      // for (var k in m.keys) {
-      //   if (m[k]?.length != comp[k]?.length) {
-      //     print('Wrong values for key "${k}"');
-      //     //break;
-      //   }
-      // }
+  stdout.write(' IKV BUILT.. ');
+
+  if (split > 1 && ikv.length >= split) {
+    var splitSize = (ikv.length / split).round();
+
+    for (var i = 0; i < split; i++) {
+      var fName = outputFileName + ' Vol.${i + 1}' + '.dikt';
+      var mSplit = await ikv.getRange(i * splitSize + (i == 0 ? 0 : 1),
+          i == split - 1 ? ikv.length - 1 : (i + 1) * splitSize);
+      var iSplit = IkvPack.fromMap(mSplit);
+      await iSplit.saveTo(fName);
+      writeInfo(fName, iSplit.length);
+      stdout.write(' vol.${i + 1} ');
     }
-  }
-
-  if (infoFile != null) {
-    var info = File(infoFile);
-    var output = File(outputFileName);
-    await info.writeAsString(
-        output.path.split('/').last +
-            '\n${m.length} words\n${output.statSync().size} bytes\n',
-        mode: FileMode.write);
+  } else {
+    var fName = outputFileName + '.dikt';
+    await ikv.saveTo(fName);
+    writeInfo(fName, ikv.length);
   }
 
   if (verbose) print('DONE');
