@@ -19,6 +19,15 @@ Future<void> test(String jsonString) async {
   for (var i = 0; i < 1; i++) {
     Map<String, Uint8List> comp;
 
+    comp = deflate(m, 0);
+    decomp.add(inflate(comp, 0));
+    comp = deflate(m, 1);
+    decomp.add(inflate(comp, 1));
+    comp = deflate(m, 6);
+    decomp.add(inflate(comp, 6));
+    comp = deflate(m, 9);
+    decomp.add(inflate(comp, 9));
+
     comp = gzip(m, 0);
     decomp.add(gzipDecomp(comp, 0));
     comp = gzip(m, 1);
@@ -118,6 +127,37 @@ String zlibDecomp(Map<String, Uint8List> m, int level) {
   }
   sw.stop();
   return 'ZLib (level: ${level}) decoding: ' +
+      sw.elapsedMilliseconds.toStringAsFixed(2) +
+      ' (ms)';
+}
+
+Map<String, Uint8List> deflate(Map<String, String> m, int level,
+    [bool verbose = true]) {
+  var comp = (Map<String, String> m) {
+    var cu = _CompUncomp();
+    for (var e in m.entries) {
+      var bytes = utf8.encode(e.value);
+      cu.uncompressed += bytes.length;
+      var def = Deflate(bytes, level: level).getBytes();
+      var b = Uint8List.fromList(def);
+      cu.compressed += b.length;
+      cu.m[e.key] = b;
+    }
+    return cu;
+  };
+
+  return _common(m, 'Deflate (level: ${level})', comp, verbose);
+}
+
+String inflate(Map<String, Uint8List> m, int level) {
+  var sw = Stopwatch();
+  sw.start();
+  for (var e in m.entries) {
+    var b = Uint8List.fromList(e.value);
+    Inflate(b).getBytes();
+  }
+  sw.stop();
+  return 'Inflate (level: ${level}) decoding: ' +
       sw.elapsedMilliseconds.toStringAsFixed(2) +
       ' (ms)';
 }
