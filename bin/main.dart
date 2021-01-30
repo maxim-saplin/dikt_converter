@@ -39,7 +39,9 @@ void main(List<String> arguments) async {
         ' - /home/pyglossary\n'
         ' - /home/dikt_converter/main.dart\n'
         'python3 must be installed and available from command line.'
-        '\n\nPass "-test" argument to run compression algorythms efficiency benchmark');
+        '\n\nPass "-fromJson" argument to convert from JSON files and bypass pyglosary conversion to JSON'
+        '\n\nPass "-toJsonOnly"  to run only pyglosary conversion to JSON and do not produce DIKT'
+        '\n\nPass "-split X" (e.g. -split 3) to split DIKT into N pieces');
     return;
   }
   if (arguments.contains('-test')) {
