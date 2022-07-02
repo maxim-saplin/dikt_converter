@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -100,7 +102,7 @@ class _CompUncomp {
 
 Map<String, Uint8List> zlib(Map<String, String> m, int level,
     [bool verbose = true]) {
-  var comp = (Map<String, String> m) {
+  _CompUncomp comp(Map<String, String> m) {
     var cu = _CompUncomp();
     var enc = ZLibEncoder();
     for (var e in m.entries) {
@@ -112,9 +114,9 @@ Map<String, Uint8List> zlib(Map<String, String> m, int level,
       cu.m[e.key] = b;
     }
     return cu;
-  };
+  }
 
-  return _common(m, 'ZLib (level: ${level})', comp, verbose);
+  return _common(m, 'ZLib (level: $level)', comp, verbose);
 }
 
 String zlibDecomp(Map<String, Uint8List> m, int level) {
@@ -126,14 +128,14 @@ String zlibDecomp(Map<String, Uint8List> m, int level) {
     dec.decodeBytes(b);
   }
   sw.stop();
-  return 'ZLib (level: ${level}) decoding: ' +
+  return 'ZLib (level: $level) decoding: ' +
       sw.elapsedMilliseconds.toStringAsFixed(2) +
       ' (ms)';
 }
 
 Map<String, Uint8List> deflate(Map<String, String> m, int level,
     [bool verbose = true]) {
-  var comp = (Map<String, String> m) {
+  _CompUncomp comp(Map<String, String> m) {
     var cu = _CompUncomp();
     for (var e in m.entries) {
       var bytes = utf8.encode(e.value);
@@ -144,9 +146,9 @@ Map<String, Uint8List> deflate(Map<String, String> m, int level,
       cu.m[e.key] = b;
     }
     return cu;
-  };
+  }
 
-  return _common(m, 'Deflate (level: ${level})', comp, verbose);
+  return _common(m, 'Deflate (level: $level)', comp, verbose);
 }
 
 String inflate(Map<String, Uint8List> m, int level) {
@@ -157,14 +159,14 @@ String inflate(Map<String, Uint8List> m, int level) {
     Inflate(b).getBytes();
   }
   sw.stop();
-  return 'Inflate (level: ${level}) decoding: ' +
+  return 'Inflate (level: $level) decoding: ' +
       sw.elapsedMilliseconds.toStringAsFixed(2) +
       ' (ms)';
 }
 
 // Only turning on raw makes a difference, thoug encoded with raw true can't be decoded with raw false
 Map<String, Uint8List> zlibDartIo(Map<String, String> m, int level) {
-  var comp = (Map<String, String> m) {
+  _CompUncomp comp(Map<String, String> m) {
     var cu = _CompUncomp();
     var enc = ZLibCodec(
             level: level,
@@ -181,9 +183,9 @@ Map<String, Uint8List> zlibDartIo(Map<String, String> m, int level) {
       cu.m[e.key] = b;
     }
     return cu;
-  };
+  }
 
-  return _common(m, 'ZLib dart:io (level: ${level})', comp);
+  return _common(m, 'ZLib dart:io (level: $level)', comp);
 }
 
 String zlibDartIoDecomp(Map<String, Uint8List> m, int level) {
@@ -195,13 +197,13 @@ String zlibDartIoDecomp(Map<String, Uint8List> m, int level) {
     dec.convert(b);
   }
   sw.stop();
-  return 'ZLib dart:io (level: ${level}) decoding: ' +
+  return 'ZLib dart:io (level: $level) decoding: ' +
       sw.elapsedMilliseconds.toStringAsFixed(2) +
       ' (ms)';
 }
 
 Map<String, Uint8List> gzipDart(Map<String, String> m, int level) {
-  var comp = (Map<String, String> m) {
+  _CompUncomp comp(Map<String, String> m) {
     var cu = _CompUncomp();
     var enc = GZipCodec(
             level: level,
@@ -218,9 +220,9 @@ Map<String, Uint8List> gzipDart(Map<String, String> m, int level) {
       cu.m[e.key] = b;
     }
     return cu;
-  };
+  }
 
-  return _common(m, 'GZip dart:io (level: ${level})', comp);
+  return _common(m, 'GZip dart:io (level: $level)', comp);
 }
 
 String gzipDartDecomp(Map<String, Uint8List> m, int level) {
@@ -232,13 +234,13 @@ String gzipDartDecomp(Map<String, Uint8List> m, int level) {
     dec.convert(b);
   }
   sw.stop();
-  return 'GZip dart:io (level: ${level}) decoding: ' +
+  return 'GZip dart:io (level: $level) decoding: ' +
       sw.elapsedMilliseconds.toStringAsFixed(2) +
       ' (ms)';
 }
 
 Map<String, Uint8List> gzip(Map<String, String> m, int level) {
-  var func = (Map<String, String> m) {
+  _CompUncomp func(Map<String, String> m) {
     var cu = _CompUncomp();
     var enc = GZipEncoder();
     for (var e in m.entries) {
@@ -250,9 +252,9 @@ Map<String, Uint8List> gzip(Map<String, String> m, int level) {
       cu.m[e.key] = b;
     }
     return cu;
-  };
+  }
 
-  return _common(m, 'GZip (level: ${level})', func);
+  return _common(m, 'GZip (level: $level)', func);
 }
 
 String gzipDecomp(Map<String, Uint8List> m, int level) {
@@ -264,13 +266,13 @@ String gzipDecomp(Map<String, Uint8List> m, int level) {
     dec.decodeBytes(b);
   }
   sw.stop();
-  return 'GZip (level: ${level})  decoding: ' +
+  return 'GZip (level: $level)  decoding: ' +
       sw.elapsedMilliseconds.toStringAsFixed(2) +
       ' (ms)';
 }
 
 Future<Map<String, Uint8List>> lzComp(Map<String, String> m, int level) {
-  var func = (Map<String, String> m) async {
+  Future<_CompUncomp> func(Map<String, String> m) async {
     var cu = _CompUncomp();
 
     for (var e in m.entries) {
@@ -281,13 +283,13 @@ Future<Map<String, Uint8List>> lzComp(Map<String, String> m, int level) {
       cu.m[e.key] = bytes;
     }
     return cu;
-  };
+  }
 
-  return _commonAsync(m, 'LZ (level: ${level})', func);
+  return _commonAsync(m, 'LZ (level: $level)', func);
 }
 
 Map<String, Uint8List> bzip2(Map<String, String> m) {
-  var func = (Map<String, String> m) {
+  _CompUncomp func(Map<String, String> m) {
     var cu = _CompUncomp();
     var enc = BZip2Encoder();
     for (var e in m.entries) {
@@ -299,7 +301,7 @@ Map<String, Uint8List> bzip2(Map<String, String> m) {
       cu.m[e.key] = b;
     }
     return cu;
-  };
+  }
 
   return _common(m, 'BZip2', func);
 }

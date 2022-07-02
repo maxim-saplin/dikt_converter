@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:path/path.dart' as path;
 
 import 'package:ikvpack/ikvpack.dart';
 
@@ -17,6 +18,11 @@ const toJsonOnlyParam =
     '-toJsonOnly'; // only produce JSON via pyglossary, do not produce DIKT
 
 const splitParam = '-split'; // break output files into N pieces
+
+const meregeParam =
+    '-merge'; // to be useed with split param, merge split files into one .mdikt
+
+const extractParam = '-extract'; // extract files from .mdikt
 
 void main(List<String> arguments) async {
   stdout.writeln('Welcome to Dikt Converter\n');
@@ -39,24 +45,38 @@ void main(List<String> arguments) async {
         ' - /home/pyglossary\n'
         ' - /home/dikt_converter/main.dart\n'
         'python3 must be installed and available from command line.'
-        '\n\nPass "-fromJson" argument to convert from JSON files and bypass pyglosary conversion to JSON'
-        '\n\nPass "-toJsonOnly"  to run only pyglosary conversion to JSON and do not produce DIKT'
-        '\n\nPass "-split X" (e.g. -split 3) to split DIKT into N pieces');
+        '\n\n Avaialble parameters:'
+        '\n\n  "$fromJsonParam" argument to convert from JSON files and bypass pyglosary conversion to JSON'
+        '\n\n  "$toJsonOnlyParam"  to run only pyglosary conversion to JSON and do not produce DIKT'
+        '\n\n  "$splitParam X" (e.g. -split 3) to split DIKT into N pieces'
+        '\n\n Can only be used individually:'
+        '\n\n  "$meregeParam" merge given files into a single .mdikt file which can later be to extract .dikt files'
+        '\n\n  "$extractParam" extracts files packed into .mdikt');
     return;
   }
+
+  if ((arguments.contains(meregeParam) || arguments.contains(extractParam)) &&
+      arguments.length > 2) {
+    stdout.writeln(
+        'Error! $meregeParam OR $extractParam can only be used alone \n\n');
+    return;
+  }
+
   if (arguments.contains('-test')) {
     stdout.writeln('Running algo benchmark... \n\n');
     testOnFile();
     return;
   }
 
-  var py = File(FileSystemEntity.parentOf(Directory('').absolute.path) +
-      '/pyglossary/main.py');
+  var py = File(
+      '${FileSystemEntity.parentOf(Directory('').absolute.path)}/pyglossary/main.py');
 
   var fromJson = arguments.contains(fromJsonParam);
   var toJsonOnly = arguments.contains(toJsonOnlyParam);
   var splitIndex = arguments.indexOf(splitParam);
   var split = splitIndex > -1 ? int.parse(arguments[splitIndex + 1]) : 0;
+  var merge = arguments.contains(meregeParam);
+  var extract = arguments.contains(splitParam);
 
   if (!fromJson) {
     stdout.writeln(FileSystemEntity.parentOf(Directory('').absolute.path));
@@ -75,7 +95,7 @@ void main(List<String> arguments) async {
     return;
   }
 
-  var output = Directory(d.absolute.path + '/_output');
+  var output = Directory('${d.absolute.path}/_output');
 
   if (output.existsSync()) {
     stdout.writeln('Clearing /_output folder');
@@ -102,72 +122,103 @@ void main(List<String> arguments) async {
   var done = 0;
   var skipped = 0;
 
-  for (var f in files) {
-    stdout.writeln(f.path);
-
-    var fname = f.path.split('/').last;
-
-    if (fromJson) fname = fname.substring(0, fname.length - 5);
-
-    if (!fromJson) {
-      stdout.write('|JSON...');
-
-      var outputJson =
-          output.absolute.path + '/' + f.path.split('/').last + '.json';
-
-      var res = Process.runSync(
-          'python3', [py.absolute.path, f.absolute.path, outputJson]);
-      if (res.exitCode != 0) {
-        stdout.writeln(' - Skipping file, pyglossary error');
-        stdout.writeln(res.stderr);
+  if (merge) {
+    var paths = <String>[];
+    var words = 0;
+    stdout.writeln('Merging DIKT to single MDIKT file:');
+    for (var f in files) {
+      stdout.write('\t $f ... ');
+      try {
+        var i = await IkvPack.getInfo(f.path);
+        words += i.count;
+        done++;
+        paths.add(f.path);
+        stdout.writeln('${i.count} words');
+      } catch (e) {
         skipped++;
-      } else {
-        if (toJsonOnly) {
-          done++;
-          stdout.writeln('OK');
-          stdout.writeln('\t - file conversion complete.');
-        } else {
-          stdout.write('OK |DIKT...');
-
-          var outputDikt = output.absolute.path + '/' + fname;
-
-          // try {
-          await bundleJson(outputJson, outputDikt, false, split);
-          done++;
-
-          stdout.writeln('\t - file conversion complete.');
-          // } catch (_) {
-          //   stdout.writeln(' - Skipping file, JSON decode error');
-          // }
-        }
+        stdout.writeln('ERROR, skipping');
       }
-    } else {
-      stdout.write('|DIKT...');
+    }
+    if (paths.isNotEmpty) {
+      var outputFile = path.join(
+          output.path, '${path.basenameWithoutExtension(paths[0])}.mdict');
+      try {
+        putIntoSingleFile(paths, outputFile);
+        writeInfo(outputFile, words);
+        stdout.writeln('Done, written to $outputFile');
+      } catch (e) {
+        done = 0;
+        stdout.writeln('!Error writting merged file: $outputFile');
+      }
+    }
+  } else if (extract) {
+    throw UnimplementedError();
+  } else {
+    for (var f in files) {
+      stdout.writeln(f.path);
 
-      var outputDikt = output.absolute.path + '/' + fname;
+      var fname = f.path.split('/').last;
 
-      await bundleJson(f.path, outputDikt, false, split);
-      stdout.writeln('\t - file conversion complete.');
-      done++;
+      if (fromJson) fname = fname.substring(0, fname.length - 5);
+      if (!fromJson) {
+        stdout.write('|JSON...');
+
+        var outputJson =
+            '${output.absolute.path}/${f.path.split('/').last}.json';
+
+        var res = Process.runSync(
+            'python3', [py.absolute.path, f.absolute.path, outputJson]);
+        if (res.exitCode != 0) {
+          stdout.writeln(' - Skipping file, pyglossary error');
+          stdout.writeln(res.stderr);
+          skipped++;
+        } else {
+          if (toJsonOnly) {
+            done++;
+            stdout.writeln('OK');
+            stdout.writeln('\t - file conversion complete.');
+          } else {
+            stdout.write('OK |DIKT...');
+
+            var outputDikt = '${output.absolute.path}/$fname';
+
+            // try {
+            await bundleJson(outputJson, outputDikt, false, split);
+            done++;
+
+            stdout.writeln('\t - file conversion complete.');
+            // } catch (_) {
+            //   stdout.writeln(' - Skipping file, JSON decode error');
+            // }
+          }
+        }
+      } else {
+        stdout.write('|DIKT...');
+
+        var outputDikt = '${output.absolute.path}/$fname';
+
+        await bundleJson(f.path, outputDikt, false, split);
+        stdout.writeln('\t - file conversion complete.');
+        done++;
+      }
     }
   }
 
   stdout.writeln(
-      '\nConversion complete. Files converted: ${done}, skipped: ${skipped}');
+      '\nConversion complete. Files converted: $done, skipped: $skipped');
+}
+
+void writeInfo(String fName, int length) async {
+  var src = File(fName);
+  var info = File('$fName.txt');
+
+  await info.writeAsString(
+      '${src.path.split('/').last}\n$length words\n${src.statSync().size} bytes\n',
+      mode: FileMode.write);
 }
 
 Future<void> bundleJson(String fileName, String outputFileName,
     [bool verbose = false, int split = 0]) async {
-  void writeInfo(String fName, int length) async {
-    var src = File(fName);
-    var info = File(fName + '.txt');
-
-    await info.writeAsString(
-        src.path.split('/').last +
-            '\n${length} words\n${src.statSync().size} bytes\n',
-        mode: FileMode.write);
-  }
-
   var input = File(fileName);
   var jsonString = await input.readAsString();
   Map mm = json.decode(jsonString);
@@ -175,7 +226,7 @@ Future<void> bundleJson(String fileName, String outputFileName,
 
   stdout.write(' JSON READ.. ');
 
-  if (verbose) print('Writing ${m.length} entries to ${outputFileName}');
+  if (verbose) print('Writing ${m.length} entries to $outputFileName');
 
   var ikv = IkvPack.fromMap(m);
 
@@ -185,7 +236,7 @@ Future<void> bundleJson(String fileName, String outputFileName,
     var splitSize = (ikv.length / split).round();
 
     for (var i = 0; i < split; i++) {
-      var fName = outputFileName + ' Vol.${i + 1}' + '.dikt';
+      var fName = '$outputFileName Vol.${i + 1}.dikt';
       var mSplit = await ikv.getRange(i * splitSize + (i == 0 ? 0 : 1),
           i == split - 1 ? ikv.length - 1 : (i + 1) * splitSize);
       var iSplit = IkvPack.fromMap(mSplit);
@@ -194,7 +245,7 @@ Future<void> bundleJson(String fileName, String outputFileName,
       stdout.write(' vol.${i + 1} ');
     }
   } else {
-    var fName = outputFileName + '.dikt';
+    var fName = '$outputFileName.dikt';
     await ikv.saveTo(fName);
     writeInfo(fName, ikv.length);
   }
@@ -260,7 +311,7 @@ Future<Map<String, Uint8List>> readFile(String fileName) async {
 
   var count = _readInt32(raf);
 
-  print('Reading ${count} entries from file ${fileName}');
+  print('Reading $count entries from file $fileName');
 
   var m = <String, Uint8List>{};
 
