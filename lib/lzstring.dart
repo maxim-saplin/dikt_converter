@@ -40,11 +40,11 @@ class LZString {
       case 0:
         return res;
       case 1:
-        return res + '===';
+        return '$res===';
       case 2:
-        return res + '==';
+        return '$res==';
       case 3:
-        return res + '=';
+        return '$res=';
     }
     return '';
   }
@@ -63,7 +63,7 @@ class LZString {
   /// This works by using only 15 bits of storage per character. The strings produced are therefore 6.66% bigger than those produced by `compress`.
   static Future<String> compressToUTF16(String input) async {
     if (input.isEmpty) return '';
-    return await _compress(input, 15, (a) => String.fromCharCode(a + 32)) + ' ';
+    return '${await _compress(input, 15, (a) => String.fromCharCode(a + 32))} ';
   }
 
   /// Decompress "valid" UTF-16 string which produces by `compressToUTF16`
@@ -100,7 +100,9 @@ class LZString {
         buf[i] = compressed[i * 2] * 256 + compressed[i * 2 + 1];
       }
       var result = <String>[];
-      buf.forEach((c) => result.add(String.fromCharCode(c)));
+      for (var c in buf) {
+        result.add(String.fromCharCode(c));
+      }
       return await decompress(result.join(''));
     }
   }
