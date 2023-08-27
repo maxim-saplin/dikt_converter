@@ -20,3 +20,6 @@ doc/api/
 *.js.deps
 *.js.map
 *_output
+.DS_Store
+test_dictionaries/.DS_Store
+.DS_Store
