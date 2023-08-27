@@ -1,0 +1,11 @@
+*~
+*.py[oc]
+/build
+/dist
+/bin
+/pyglossary.egg-info
+/.mypy_cache/
+/plugins
+/ui
+vulture.*
+*.DS_Store

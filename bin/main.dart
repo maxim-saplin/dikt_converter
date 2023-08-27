@@ -68,8 +68,7 @@ void main(List<String> arguments) async {
     return;
   }
 
-  var py = File(
-      '${FileSystemEntity.parentOf(Directory('').absolute.path)}/pyglossary/main.py');
+  var py = File('./pyglossary/main.py');
 
   var fromJson = arguments.contains(fromJsonParam);
   var toJsonOnly = arguments.contains(toJsonOnlyParam);
